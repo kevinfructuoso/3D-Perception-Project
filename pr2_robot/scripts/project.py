@@ -51,27 +51,81 @@ def pcl_callback(pcl_msg):
 
 # Exercise-2 TODOs:
 
-    # TODO: Convert ROS msg to PCL data
-    
-    # TODO: Statistical Outlier Filtering
+    # Convert ROS msg to PCL data
+    pcl_msg = ros_to_pcl(pcl_msg)
 
-    # TODO: Voxel Grid Downsampling
+    # Statistical Outlier Filtering 
+    outlier_filter = pcl_msg.make_statistical_outlier_filter()
 
-    # TODO: PassThrough Filter
+    # Set the number of neighboring points to analyze for any given point
+    outlier_filter.set_mean_k(50)
 
-    # TODO: RANSAC Plane Segmentation
+    # Set threshold scale factor
+    x = 1.0
 
-    # TODO: Extract inliers and outliers
+    # Any point with a mean distance larger than global (mean distance+x*std_dev) will be considered outlier
+    outlier_filter.set_std_dev_mul_thresh(x)
+
+    # Finally call the filter function for magic
+    cloud_outlier_filtered = outlier_filter.filter()
+
+    # Voxel Grid Downsampling
+    vox = cloud_outlier_filtered.make_voxel_grid_filter()
+
+    # Choose a voxel (also known as leaf) size
+    LEAF_SIZE = 0.005   
+
+    # Set the voxel (or leaf) size  
+    vox.set_leaf_size(LEAF_SIZE, LEAF_SIZE, LEAF_SIZE)
+
+    # Call the filter function to obtain the resultant downsampled point cloud
+    cloud_filtered = vox.filter()
+
+    # Create a PassThrough filter object.
+    passthrough = cloud_filtered.make_passthrough_filter()
+
+    # Assign axis and range to the passthrough filter object.
+    filter_axis = 'z'
+    passthrough.set_filter_field_name(filter_axis)
+    axis_min = 0.6
+    axis_max = 0.8
+    passthrough.set_filter_limits(axis_min, axis_max)
+
+    # Finally use the filter function to obtain the resultant point cloud.
+    # Results in only the table and objects on top 
+    cloud_filtered = passthrough.filter()
+
+    # RANSAC Plane Segmentation
+    # Create the segmentation object
+    seg = cloud_filtered.make_segmenter()
+
+    # Set the model you wish to fit - table top
+    seg.set_model_type(pcl.SACMODEL_PLANE)
+    seg.set_method_type(pcl.SAC_RANSAC)
+
+    # Max distance for a point to be considered fitting the model
+    max_distance = 0.01
+    seg.set_distance_threshold(max_distance)
+
+    # Call the segment function to obtain set of inlier indices and model coefficients
+    inliers, coefficients = seg.segment()
+
+    # Extract inliers (table top points) and outliers (table top object points)
+    extracted_inliers = cloud_filtered.extract(inliers, negative=False)
+    extracted_outliers = cloud_filtered.extract(inliers, negative=True)
 
     # TODO: Euclidean Clustering
 
     # TODO: Create Cluster-Mask Point Cloud to visualize each cluster separately
 
     # TODO: Convert PCL data to ROS messages
-    #ros_cloud_objects = pcl_to_ros(pcl_msg)
+    #ros_cloud_objects = pcl_to_ros(cloud_filtered)
+    ros_cloud_objects = pcl_to_ros(extracted_outliers)
+    ros_cloud_table = pcl_to_ros(extracted_inliers)
 
     # TODO: Publish ROS messages
-    pcl_objects_pub.publish(pcl_msg)
+    pcl_objects_pub.publish(ros_cloud_objects)
+    pcl_table_pub.publish(ros_cloud_table)
 
 # Exercise-3 TODOs:
 
@@ -146,12 +200,14 @@ if __name__ == '__main__':
 
     # TODO: Create Publishers
     pcl_objects_pub = rospy.Publisher("/pcl_objects", PointCloud2, queue_size=1)
+    pcl_table_pub = rospy.Publisher("/pcl_table", PointCloud2, queue_size=1)
+
 
     # TODO: Load Model From disk
 
     # Initialize color_list
     get_color_list.color_list = []
 
-    # TODO: Spin while node is not shutdown
+    # Spin while node is not shutdown
     while not rospy.is_shutdown():
         rospy.spin()
