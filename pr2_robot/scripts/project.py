@@ -16,13 +16,14 @@ from sensor_stick.pcl_helper import *
 
 import rospy
 import tf
-from geometry_msgs.msg import Pose, Point
+from geometry_msgs.msg import Pose
 from std_msgs.msg import Float64
 from std_msgs.msg import Int32
 from std_msgs.msg import String
 from pr2_robot.srv import *
 from rospy_message_converter import message_converter
 import yaml
+import time
 
 
 # Helper function to get surface normals
@@ -93,6 +94,15 @@ def pcl_callback(pcl_msg):
     # Results in only the table and objects on top 
     cloud_filtered = passthrough.filter()
 
+    filter2_axis = 'y'
+    passthrough2 = cloud_filtered.make_passthrough_filter()
+    passthrough2.set_filter_field_name(filter2_axis)
+    axis_min2 = -0.4
+    axis_max2 = 0.4
+    passthrough2.set_filter_limits(axis_min2, axis_max2)
+
+    cloud_filtered = passthrough2.filter()
+
     # RANSAC Plane Segmentation
     # Create the segmentation object
     seg = cloud_filtered.make_segmenter()
@@ -120,7 +130,7 @@ def pcl_callback(pcl_msg):
     ec = white_cloud.make_EuclideanClusterExtraction()
     # Set tolerances for cluser search
     ec.set_ClusterTolerance(0.0075)
-    ec.set_MinClusterSize(400)
+    ec.set_MinClusterSize(100)
     ec.set_MaxClusterSize(2000)
 
     # Search the k-d tree for clusters
@@ -207,33 +217,26 @@ def pr2_mover(object_list):
 
     # Initialize variables
     test_scene_num = Int32()
-    test_scene_num.data = 1     #update according to test world used
+    test_scene_num.data = 3     #update according to test world used
     object_name = String()
     arm_name = String()
     pick_pose = Pose()
     place_pose = Pose()
+    labels = []
+    centroids = []
+    dict_list = []
 
     # Get/Read parameters
     object_list_parameters = rospy.get_param('/object_list')
     dropbox_parameters = rospy.get_param('/dropbox')
-    #print(object_list_parameters)
-
-    # Parse parameters into individual variables
-    #for i in len(object_list_parameters):
-    #    object_names.data  = object_list_parameters['name']
-    #    object_groups = object_list_parameters['group']
 
     # TODO: Rotate PR2 in place to capture side tables for the collision map
     
-
-    labels = []
-    centroids = []
-    dict_list = []
+    # Iterate over detected objects 
     for object in object_list:
         # Get the PointCloud for a given object and obtain it's centroid
         labels.append(object.label)
         points_arr = ros_to_pcl(object.cloud).to_array()
-        #points_arr_pyfloat = np.asscalar(points_arr)
         centroids.append(np.mean(points_arr, axis=0)[:3])
 
     # Loop through the pick list
@@ -245,12 +248,10 @@ def pr2_mover(object_list):
             if labels[j] == object_list_parameters[i]['name']:
                 index = j
                 break
-        pick_pose_point = Point()
-        pick_pose_point.x = np.asscalar(centroids[index][0])
-        pick_pose_point.y = np.asscalar(centroids[index][1])
-        pick_pose_point.z = np.asscalar(centroids[index][2])
-        print(type(pick_pose_point.z))
-        pick_pose.position = pick_pose_point 
+
+        pick_pose.position.x = np.asscalar(centroids[index][0])
+        pick_pose.position.y = np.asscalar(centroids[index][1])
+        pick_pose.position.z = np.asscalar(centroids[index][2])
 
         # Assign the arm to be used for pick_place and get corresponding dropbox location
         if object_list_parameters[i]['group'] == 'green': 
@@ -260,36 +261,32 @@ def pr2_mover(object_list):
             dropbox_values = dropbox_parameters[0]['position']
             arm_name.data = 'left'
 
-        place_pose_point = Point()
-        place_pose_point.x = float(dropbox_values[0])
-        print(type(place_pose_point.x))
-        place_pose_point.y = float(dropbox_values[1])
-        place_pose_point.z = float(dropbox_values[2])
-        place_pose.position = place_pose_point
+        place_pose.position.x = float(dropbox_values[0])
+        place_pose.position.y = float(dropbox_values[1])
+        place_pose.position.z = float(dropbox_values[2])
 
         # Create a list of dictionaries (made with make_yaml_dict()) for later output to yaml format
         yaml_dict = make_yaml_dict(test_scene_num, arm_name, object_name, pick_pose, place_pose)
         dict_list.append(yaml_dict)
-        print(dict_list)
 
         # Wait for 'pick_place_routine' service to come up
-        rospy.wait_for_service('pick_place_routine')
+        #rospy.wait_for_service('pick_place_routine')
 
-        try:
-            pick_place_routine = rospy.ServiceProxy('pick_place_routine', PickPlace)
+        #try:
+        #    pick_place_routine = rospy.ServiceProxy('pick_place_routine', PickPlace)
 
             # Insert message variables to be sent as a service request
-            resp = pick_place_routine(test_scene_num, object_name, arm_name, pick_pose, place_pose)
+        #    resp = pick_place_routine(test_scene_num, object_name, arm_name, pick_pose, place_pose)
 
-            print ("Response: ",resp.success)
+        #    print ("Response: ",resp.success)
 
-        except rospy.ServiceException, e:
-            print "Service call failed: %s"%e
+        #except rospy.ServiceException, e:
+        #    print "Service call failed: %s"%e
 
     # Output your request parameters into output yaml file
-    print(dict_list)
     send_to_yaml('output_'+str(test_scene_num.data)+'.yaml',dict_list)
-
+    print("DONE creating file!!!")
+    time.sleep(10)
 
 if __name__ == '__main__':
 
