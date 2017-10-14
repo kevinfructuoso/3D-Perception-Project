@@ -87,13 +87,13 @@ def pcl_callback(pcl_msg):
     filter_axis = 'z'
     passthrough.set_filter_field_name(filter_axis)
     axis_min = 0.6
-    axis_max = 0.8
+    axis_max = 0.85
     passthrough.set_filter_limits(axis_min, axis_max)
 
-    # Finally use the filter function to obtain the resultant point cloud.
-    # Results in only the table and objects on top 
+    # Use the filter function to obtain the resultant point cloud.
     cloud_filtered = passthrough.filter()
 
+    # Create another Passthrough filter on the y axis to remove corners of bins from being detected clustered
     filter2_axis = 'y'
     passthrough2 = cloud_filtered.make_passthrough_filter()
     passthrough2.set_filter_field_name(filter2_axis)
@@ -101,13 +101,14 @@ def pcl_callback(pcl_msg):
     axis_max2 = 0.4
     passthrough2.set_filter_limits(axis_min2, axis_max2)
 
+    # Results in only the table and objects on top 
     cloud_filtered = passthrough2.filter()
 
-    # RANSAC Plane Segmentation
+    # RANSAC Plane Segmentation to split the table from the objects in the point cloud
     # Create the segmentation object
     seg = cloud_filtered.make_segmenter()
 
-    # Set the model you wish to fit - table top
+    # Set the model you wish to fit - to deetect table top
     seg.set_model_type(pcl.SACMODEL_PLANE)
     seg.set_method_type(pcl.SAC_RANSAC)
 
@@ -122,7 +123,7 @@ def pcl_callback(pcl_msg):
     #extracted_inliers = cloud_filtered.extract(inliers, negative=False)
     extracted_outliers = cloud_filtered.extract(inliers, negative=True)
 
-    # Euclidean Clustering
+    # Euclidean Clustering to identify individual
     white_cloud = XYZRGB_to_XYZ(extracted_outliers)
     tree = white_cloud.make_kdtree()
 
@@ -131,7 +132,7 @@ def pcl_callback(pcl_msg):
     # Set tolerances for cluser search
     ec.set_ClusterTolerance(0.0075)
     ec.set_MinClusterSize(100)
-    ec.set_MaxClusterSize(2000)
+    ec.set_MaxClusterSize(2500)
 
     # Search the k-d tree for clusters
     ec.set_SearchMethod(tree)
@@ -157,7 +158,6 @@ def pcl_callback(pcl_msg):
     cluster_cloud.from_list(color_cluster_point_list)
 
     # Convert PCL data to ROS messages
-    #ros_cloud_objects = pcl_to_ros(cloud_filtered)
     ros_cloud_objects = pcl_to_ros(extracted_outliers)
     #ros_cloud_table = pcl_to_ros(extracted_inliers)
     ros_cluster_cloud = pcl_to_ros(cluster_cloud)
@@ -184,7 +184,7 @@ def pcl_callback(pcl_msg):
         nhists = compute_normal_histograms(normals)
         feature = np.concatenate((chists, nhists))
 
-        # Make the prediction
+        # Make the prediction based on the model
         prediction = clf.predict(scaler.transform(feature.reshape(1,-1)))
         label = encoder.inverse_transform(prediction)[0]
         detected_objects_labels.append(label)
@@ -204,15 +204,14 @@ def pcl_callback(pcl_msg):
     rospy.loginfo('Detected {} objects: {}'.format(len(detected_objects_labels), detected_objects_labels))
     detected_objects_pub.publish(detected_objects)
 
-    # Suggested location for where to invoke your pr2_mover() function within pcl_callback()
-    # Could add some logic to determine whether or not your object detections are robust
-    # before calling pr2_mover()
+    # Request and log a pick and place service
     try:
         pr2_mover(detected_objects)
     except rospy.ROSInterruptException:
        pass
 
 # function to load parameters and request PickPlace service
+# Does not yet perform the pick and place action as that is not a requirement for a passing submission
 def pr2_mover(object_list):
 
     # Initialize variables
@@ -225,14 +224,13 @@ def pr2_mover(object_list):
     labels = []
     centroids = []
     dict_list = []
+    #index = -1
 
-    # Get/Read parameters
+    # Get/Read parameters of the object list and the required dropbox per item
     object_list_parameters = rospy.get_param('/object_list')
     dropbox_parameters = rospy.get_param('/dropbox')
-
-    # TODO: Rotate PR2 in place to capture side tables for the collision map
     
-    # Iterate over detected objects 
+    # Iterate over detected objects to collect identified list and locations
     for object in object_list:
         # Get the PointCloud for a given object and obtain it's centroid
         labels.append(object.label)
@@ -242,13 +240,17 @@ def pr2_mover(object_list):
     # Loop through the pick list
     for i in range(len(object_list_parameters)):
 
+        # get pick list object name
         object_name.data = object_list_parameters[i]['name']
 
+        # find pick list object in detected list of items
         for j in range(len(labels)):
             if labels[j] == object_list_parameters[i]['name']:
                 index = j
                 break
+            #if index != -1:
 
+        # place object centroid into pick_pose for the service request
         pick_pose.position.x = np.asscalar(centroids[index][0])
         pick_pose.position.y = np.asscalar(centroids[index][1])
         pick_pose.position.z = np.asscalar(centroids[index][2])
@@ -261,6 +263,7 @@ def pr2_mover(object_list):
             dropbox_values = dropbox_parameters[0]['position']
             arm_name.data = 'left'
 
+        # place the dropbox location into place_pose for the service request
         place_pose.position.x = float(dropbox_values[0])
         place_pose.position.y = float(dropbox_values[1])
         place_pose.position.z = float(dropbox_values[2])
