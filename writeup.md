@@ -39,12 +39,13 @@ Training steps were completed using the supporting [Perception-Exercises](https:
 The resulting raw and normalized confusion matrices are shown below. The model correctly identified objects 156/160 times for an accuracy of 97.5%. A 5-fold cross validation was used and resulted in an accuracy range of 97% +/- 0.5%.
 
 #### Confusion Matrices
+
 <p align="center">
-  <img src="./Screenshots/confusion_matrix_raw.png">
+  <img src="./Screenshots/confusion_matrix_raw.PNG">
 </p>
 
 <p align="center">
-  <img src="./Screenshots/confusion_matrix_normalized.png">
+  <img src="./Screenshots/confusion_matrix_normalized.PNG">
 </p>
 
 
@@ -53,8 +54,9 @@ The resulting raw and normalized confusion matrices are shown below. The model c
 #### 1. For all three tabletop setups (`test*.world`), perform object recognition, then read in respective pick list (`pick_list_*.yaml`). Next construct the messages that would comprise a valid `PickPlace` request output them to `.yaml` format.
 
 The first step in the perception pipeline was to remove noise from the raw RGB-D images. A sample of the raw image is shown below. This is achieved with a statistical outlier filter applied to the raw point cloud.
+
 <p align="center">
-  <img src="./Screenshots/raw_image.png">
+  <img src="./Screenshots/raw_image.PNG">
 </p>
 
 From there, the point cloud is then downsampled using a Vox filter. Passthrough filters were applied in both the Z and Y axes. This was done in order to focus on a specific section of the point cloud that includes only the tabletop and the objects of interest. RANSAC Plane segmentation was then applied to separate the objects from the tabletop. The results thus far can be seen in the below image.
@@ -66,24 +68,24 @@ From there, the point cloud is then downsampled using a Vox filter. Passthrough 
 Next, Euclidean clustering and object recognition can be applied to the point cloud containing the objects only. Using the model discussed in the previous section, the below image shows the results of the object recognition. The project succeeded in correctly identifying all objects repeatably.
 
 <p align="center">
-  <img src="./Screenshots/cluster_colors.png">
+  <img src="./Screenshots/cluster_colors.PNG">
 </p>
 
 The below images show the identification results of each tabletop scenario with the objects in their normal color patterns. The object recognition is 100% accurate in each of these settings.
 
 <p align="center">
-  <img src="./Screenshots/object_rec_world_1.png">
+  <img src="./Screenshots/object_rec_world_1.PNG">
 </p>
 
 <p align="center">
-  <img src="./Screenshots/object_rec_world_2.png">
+  <img src="./Screenshots/object_rec_world_2.PNG">
 </p>
 
 <p align="center">
-  <img src="./Screenshots/object_rec_world_3.png">
+  <img src="./Screenshots/object_rec_world_3.PNG">
 </p>
  
-The generated pick and place service output.yaml files can be found in the [config](https://github.com/kevinfructuoso/3D-Perception-Project/tree/master/pr2_robot/config) folder under files [output_1.yaml](https://github.com/kevinfructuoso/3D-Perception-Project/tree/master/pr2_robot/config/output_1.yaml), [output_2.yaml](https://github.com/kevinfructuoso/3D-Perception-Project/tree/master/pr2_robot/config/output_2.yaml), and [output_3.yaml](https://github.com/kevinfructuoso/3D-Perception-Project/tree/master/pr2_robot/config/output_3.yaml).
+The generated pick and place service output.yaml files can be found in the [config](https://github.com/kevinfructuoso/3D-Perception-Project/tree/master/pr2_robot/config) folder under the [output_1.yaml](https://github.com/kevinfructuoso/3D-Perception-Project/tree/master/pr2_robot/config/output_1.yaml), [output_2.yaml](https://github.com/kevinfructuoso/3D-Perception-Project/tree/master/pr2_robot/config/output_2.yaml), and [output_3.yaml](https://github.com/kevinfructuoso/3D-Perception-Project/tree/master/pr2_robot/config/output_3.yaml) files.
 
 At the moment, the PR2 robot cannot reliably complete the pick and place movements. A collision map needs to be implemented in order to do so. Other ways to improve upon this project include the below list:
 - improving training model to 100% accuracy
