@@ -9,45 +9,45 @@ The PR2 has been outfitted with an RGB-D sensor much like the one you used in pr
 Given the cluttered tabletop scenario, you must implement a perception pipeline using your work from Exercises 1,2 and 3 to identify target objects from a so-called “Pick-List” in that particular order, pick up those objects and place them in corresponding dropboxes.
 
 # Project Setup
-For this setup, catkin_ws is the name of active ROS Workspace, if your workspace name is different, change the commands accordingly
+For this setup, roboperception is the name of active ROS Workspace, if your workspace name is different, change the commands accordingly
 If you do not have an active ROS workspace, you can create one by:
 
 ```sh
-$ mkdir -p ~/catkin_ws/src
-$ cd ~/catkin_ws/
+$ mkdir -p ~/roboperception/src
+$ cd ~/roboperception/
 $ catkin_make
 ```
 
 Now that you have a workspace, clone or download this repo into the src directory of your workspace:
 ```sh
-$ cd ~/catkin_ws/src
+$ cd ~/roboperception/src
 $ git clone https://github.com/udacity/RoboND-Perception-Project.git
 ```
 ### Note: If you have the Kinematics Pick and Place project in the same ROS Workspace as this project, please remove the 'gazebo_grasp_plugin' directory from the `RoboND-Perception-Project/` directory otherwise ignore this note. 
 
 Now install missing dependencies using rosdep install:
 ```sh
-$ cd ~/catkin_ws
+$ cd ~/roboperception
 $ rosdep install --from-paths src --ignore-src --rosdistro=kinetic -y
 ```
 Build the project:
 ```sh
-$ cd ~/catkin_ws
+$ cd ~/roboperception
 $ catkin_make
 ```
 Add following to your .bashrc file
 ```
-export GAZEBO_MODEL_PATH=~/catkin_ws/src/RoboND-Perception-Project/pr2_robot/models:$GAZEBO_MODEL_PATH
+export GAZEBO_MODEL_PATH=~/roboperception/src/RoboND-Perception-Project/pr2_robot/models:$GAZEBO_MODEL_PATH
 ```
 
 If you haven’t already, following line can be added to your .bashrc to auto-source all new terminals
 ```
-source ~/catkin_ws/devel/setup.bash
+source ~/roboperception/devel/setup.bash
 ```
 
 To run the demo:
 ```sh
-$ cd ~/catkin_ws/src/RoboND-Perception-Project/pr2_robot/scripts
+$ cd ~/roboperception/src/RoboND-Perception-Project/pr2_robot/scripts
 $ chmod u+x pr2_safe_spawner.sh
 $ ./pr2_safe_spawner.sh
 ```
@@ -90,7 +90,6 @@ $ roslaunch pr2_robot pick_place_project.launch
 6. Calculate the centroid (average in x, y and z) of the set of points belonging to that each object.
 7. Create ROS messages containing the details of each object (name, pick_pose, etc.) and write these messages out to `.yaml` files, one for each of the 3 scenarios (`test1-3.world` in `/pr2_robot/worlds/`).  See the example `output.yaml` for details on what the output should look like.  
 8. Submit a link to your GitHub repo for the project or the Python code for your perception pipeline and your output `.yaml` files (3 `.yaml` files, one for each test world).  You must have correctly identified 100% of objects from `pick_list_1.yaml` for `test1.world`, 80% of items from `pick_list_2.yaml` for `test2.world` and 75% of items from `pick_list_3.yaml` in `test3.world`.
-9. Congratulations!  Your Done!
 
 # Extra Challenges: Complete the Pick & Place
 7. To create a collision map, publish a point cloud to the `/pr2/3d_map/points` topic and make sure you change the `point_cloud_topic` to `/pr2/3d_map/points` in `sensors.yaml` in the `/pr2_robot/config/` directory. This topic is read by Moveit!, which uses this point cloud input to generate a collision map, allowing the robot to plan its trajectory.  Keep in mind that later when you go to pick up an object, you must first remove it from this point cloud so it is removed from the collision map!
